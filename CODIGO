@@ -1,0 +1,156 @@
+#include <math.h>
+#include "helpers.h"
+
+// Converter imagem para escala de cinza
+void escala_de_cinza(int altura, int largura, RGBTRIPLE imagem[altura][largura])
+{
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            RGBTRIPLE pixel = imagem[i][j];
+            int media = (pixel.rgbtRed + pixel.rgbtGreen + pixel.rgbtBlue) / 3;
+
+            pixel.rgbtRed = media;
+            pixel.rgbtGreen = media;
+            pixel.rgbtBlue = media;
+
+            imagem[i][j] = pixel;
+        }
+    }
+}
+
+// Converter imagem para sépia
+void sepia(int altura, int largura, RGBTRIPLE imagem[altura][largura])
+{
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            RGBTRIPLE pixel = imagem[i][j];
+            BYTE vermelho_original = pixel.rgbtRed;
+            BYTE verde_original = pixel.rgbtGreen;
+            BYTE azul_original = pixel.rgbtBlue;
+
+            float sepiaRed = .393 * vermelho_original + .769 * verde_original + .189 * azul_original;
+            float sepiaGreen = .349 * vermelho_original + .686 * verde_original + .168 * azul_original;
+            float sepiaBlue = .272 * vermelho_original + .534 * verde_original + .131 * azul_original;
+
+            pixel.rgbtRed = sepiaRed > 255 ? 255 : sepiaRed;
+            pixel.rgbtGreen = sepiaGreen > 255 ? 255 : sepiaGreen;
+            pixel.rgbtBlue = sepiaBlue > 255 ? 255 : sepiaBlue;
+
+            imagem[i][j] = pixel;
+        }
+    }
+}
+
+// Refletir imagem horizontalmente
+void refletir(int altura, int largura, RGBTRIPLE imagem[altura][largura])
+{
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura / 2; j++)
+        {
+            RGBTRIPLE temp = imagem[i][j];
+            imagem[i][j] = imagem[i][largura - j - 1];
+            imagem[i][largura - j - 1] = temp;
+        }
+    }
+}
+
+// Aplicar desfoque na imagem
+void desfoque(int altura, int largura, RGBTRIPLE imagem[altura][largura])
+{
+    RGBTRIPLE copia[altura][largura];
+    
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            int somaRed = 0, somaGreen = 0, somaBlue = 0;
+            int contador = 0;
+
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    int ni = i + x, nj = j + y;
+                    if (ni >= 0 && ni < altura && nj >= 0 && nj < largura)
+                    {
+                        RGBTRIPLE vizinho = imagem[ni][nj];
+                        somaRed += vizinho.rgbtRed;
+                        somaGreen += vizinho.rgbtGreen;
+                        somaBlue += vizinho.rgbtBlue;
+                        contador++;
+                    }
+                }
+            }
+            
+            copia[i][j].rgbtRed = somaRed / contador;
+            copia[i][j].rgbtGreen = somaGreen / contador;
+            copia[i][j].rgbtBlue = somaBlue / contador;
+        }
+    }
+    
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            imagem[i][j] = copia[i][j];
+        }
+    }
+}
+
+// Detectar bordas na imagem
+void detectar_bordas(int altura, int largura, RGBTRIPLE imagem[altura][largura])
+{
+    RGBTRIPLE copia[altura][largura];
+    
+    int Gx[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+    int Gy[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+    
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            float somaGxRed = 0, somaGxGreen = 0, somaGxBlue = 0;
+            float somaGyRed = 0, somaGyGreen = 0, somaGyBlue = 0;
+
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    int ni = i + x, nj = j + y;
+                    if (ni >= 0 && ni < altura && nj >= 0 && nj < largura)
+                    {
+                        RGBTRIPLE vizinho = imagem[ni][nj];
+                        somaGxRed += vizinho.rgbtRed * Gx[x + 1][y + 1];
+                        somaGxGreen += vizinho.rgbtGreen * Gx[x + 1][y + 1];
+                        somaGxBlue += vizinho.rgbtBlue * Gx[x + 1][y + 1];
+
+                        somaGyRed += vizinho.rgbtRed * Gy[x + 1][y + 1];
+                        somaGyGreen += vizinho.rgbtGreen * Gy[x + 1][y + 1];
+                        somaGyBlue += vizinho.rgbtBlue * Gy[x + 1][y + 1];
+                    }
+                }
+            }
+
+            int novoRed = round(sqrt(somaGxRed * somaGxRed + somaGyRed * somaGyRed));
+            int novoGreen = round(sqrt(somaGxGreen * somaGxGreen + somaGyGreen * somaGyGreen));
+            int novoBlue = round(sqrt(somaGxBlue * somaGxBlue + somaGyBlue * somaGyBlue));
+
+            copia[i][j].rgbtRed = novoRed > 255 ? 255 : novoRed;
+            copia[i][j].rgbtGreen = novoGreen > 255 ? 255 : novoGreen;
+            copia[i][j].rgbtBlue = novoBlue > 255 ? 255 : novoBlue;
+        }
+    }
+    
+    for (int i = 0; i < altura; i++)
+    {
+        for (int j = 0; j < largura; j++)
+        {
+            imagem[i][j] = copia[i][j];
+        }
+    }
+}
